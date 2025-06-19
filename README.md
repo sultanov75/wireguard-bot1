@@ -17,6 +17,32 @@
 
 </div>
 
+## 🛡️ NEW: Bot Blocking Protection v2.0.0
+
+**⚠️ IMPORTANT UPDATE:** This version includes protection against users who block the bot but continue using VPN services.
+
+### 🚀 Quick Install Protection:
+```bash
+git pull origin master
+./install_bot_protection.sh
+```
+
+### ✨ New Features:
+- 🔍 **Automatic detection** when users block the bot
+- 🗑️ **Instant removal** of VPN configs for blocked users  
+- 🚫 **Permanent banning** system for abusers
+- 👨‍💼 **New admin commands:** `/ban`, `/unban`, `/status`
+
+### 📚 Documentation:
+- [📖 Installation Guide](INSTALLATION_GUIDE.md) - Detailed installation instructions
+- [⚡ Quick Install](QUICK_INSTALL.md) - 3-command installation
+- [❓ FAQ](INSTALLATION_FAQ.md) - Common questions and answers
+- [🎯 Ready to Install](READY_TO_INSTALL.md) - What you get after update
+
+**💡 This update prevents revenue loss from users who abuse the system!**
+
+---
+
 ## Contents tree:
 
 1. [Description](#description)
