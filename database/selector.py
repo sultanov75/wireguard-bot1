@@ -234,3 +234,21 @@ def is_subscription_expired(user_id: int) -> bool:
     except (Exception, pg.DatabaseError) as error:
         logger.error(f"[-] {error}")
         return False
+
+
+def is_user_banned(user_id: int) -> bool:
+    """Check if user is banned"""
+    try:
+        conn = pg.connect(**configuration.db_connection_parameters)
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """--sql
+                SELECT is_banned FROM users WHERE user_id = %s
+                """,
+                (user_id,),
+            )
+            result = cursor.fetchone()
+            return result[0] if result else False
+    except (Exception, pg.DatabaseError) as error:
+        logger.error(f"[-] {error}")
+        return False

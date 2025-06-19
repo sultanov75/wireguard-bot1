@@ -161,3 +161,133 @@ async def give_subscription_time(
 async def restart_wg_service_admin(message: types.Message, state: FSMContext):
     vpn_config.restart_service()
     await message.answer("Сервис WireGuard перезапущен")
+
+
+@rate_limit(limit=3)
+@is_admin
+async def cmd_ban_user(message: types.Message, state: FSMContext):
+    """Ban user permanently - /ban <user_id>"""
+    try:
+        args = message.text.split()
+        if len(args) != 2:
+            await message.answer("Использование: /ban <user_id>")
+            return
+        
+        user_id = int(args[1])
+        
+        if not database.selector.is_exist_user(user_id):
+            await message.answer(f"Пользователь {user_id} не найден в базе данных")
+            return
+        
+        # Completely ban user
+        await vpn_config.ban_user_completely(user_id)
+        
+        username = database.selector.get_username_by_id(user_id)
+        await message.answer(
+            f"✅ Пользователь {hcode(user_id)}::{hcode(username)} заблокирован навсегда.\n"
+            f"Все конфигурации удалены из WireGuard и базы данных.",
+            parse_mode=types.ParseMode.HTML
+        )
+        
+        # Notify other admins
+        for admin in configuration.admins:
+            if admin != message.from_user.id:
+                await bot.send_message(
+                    chat_id=admin,
+                    text=f"Пользователь {hcode(user_id)}::{hcode(username)} заблокирован администратором {hcode(message.from_user.username)}",
+                    parse_mode=types.ParseMode.HTML,
+                )
+                
+    except ValueError:
+        await message.answer("Неверный формат user_id")
+    except Exception as e:
+        logger.error(f"Error banning user: {e}")
+        await message.answer(f"Ошибка при блокировке пользователя: {e}")
+
+
+@rate_limit(limit=3)
+@is_admin
+async def cmd_unban_user(message: types.Message, state: FSMContext):
+    """Unban user - /unban <user_id>"""
+    try:
+        args = message.text.split()
+        if len(args) != 2:
+            await message.answer("Использование: /unban <user_id>")
+            return
+        
+        user_id = int(args[1])
+        
+        if not database.selector.is_exist_user(user_id):
+            await message.answer(f"Пользователь {user_id} не найден в базе данных")
+            return
+        
+        if not database.selector.is_user_banned(user_id):
+            await message.answer(f"Пользователь {user_id} не заблокирован")
+            return
+        
+        # Unban user
+        database.update.unban_user(user_id)
+        
+        username = database.selector.get_username_by_id(user_id)
+        await message.answer(
+            f"✅ Пользователь {hcode(user_id)}::{hcode(username)} разблокирован.\n"
+            f"Теперь он может снова использовать бота.",
+            parse_mode=types.ParseMode.HTML
+        )
+        
+        # Notify other admins
+        for admin in configuration.admins:
+            if admin != message.from_user.id:
+                await bot.send_message(
+                    chat_id=admin,
+                    text=f"Пользователь {hcode(user_id)}::{hcode(username)} разблокирован администратором {hcode(message.from_user.username)}",
+                    parse_mode=types.ParseMode.HTML,
+                )
+                
+    except ValueError:
+        await message.answer("Неверный формат user_id")
+    except Exception as e:
+        logger.error(f"Error unbanning user: {e}")
+        await message.answer(f"Ошибка при разблокировке пользователя: {e}")
+
+
+@rate_limit(limit=3)
+@is_admin
+async def cmd_check_user_status(message: types.Message, state: FSMContext):
+    """Check user status - /status <user_id>"""
+    try:
+        args = message.text.split()
+        if len(args) != 2:
+            await message.answer("Использование: /status <user_id>")
+            return
+        
+        user_id = int(args[1])
+        
+        if not database.selector.is_exist_user(user_id):
+            await message.answer(f"Пользователь {user_id} не найден в базе данных")
+            return
+        
+        username = database.selector.get_username_by_id(user_id)
+        is_banned = database.selector.is_user_banned(user_id)
+        subscription_end = database.selector.get_subscription_end_date(user_id)
+        is_expired = database.selector.is_subscription_end(user_id)
+        
+        status_text = f"👤 Пользователь {hcode(user_id)}::{hcode(username)}\n\n"
+        status_text += f"🚫 Заблокирован: {'Да' if is_banned else 'Нет'}\n"
+        status_text += f"📅 Подписка до: {subscription_end}\n"
+        status_text += f"⏰ Статус подписки: {'Истекла' if is_expired else 'Активна'}\n"
+        
+        # Check configs
+        configs = database.selector.all_user_configs(user_id)
+        if configs:
+            status_text += f"📱 Конфигурации: {', '.join([config[0] for config in configs])}\n"
+        else:
+            status_text += f"📱 Конфигурации: Нет\n"
+        
+        await message.answer(status_text, parse_mode=types.ParseMode.HTML)
+        
+    except ValueError:
+        await message.answer("Неверный формат user_id")
+    except Exception as e:
+        logger.error(f"Error checking user status: {e}")
+        await message.answer(f"Ошибка при проверке статуса пользователя: {e}")

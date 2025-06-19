@@ -259,3 +259,85 @@ class WireguardConfig:
 
         except Exception as e:
             logger.error(f"[-] {e}")
+
+    async def permanently_remove_peer(self, user_id: int):
+        """Permanently removes peer configuration from WireGuard config file."""
+        username = database.selector.get_username_by_id(user_id)
+        if not username:
+            logger.error(f"[-] Username not found for user_id {user_id}")
+            return
+
+        try:
+            async with aiofiles.open(self.cfg_path, "r") as cfg:
+                config_lines = await cfg.readlines()
+
+            new_config_lines = []
+            skip_lines = 0
+            
+            for i, line in enumerate(config_lines):
+                if skip_lines > 0:
+                    skip_lines -= 1
+                    continue
+                    
+                # Check if this line contains the username we want to remove
+                if (line.strip() == f"#{username}_PC" or 
+                    line.strip() == f"#{username}_PHONE" or
+                    line.strip() == f"#DISCONNECTED_{username}_PC" or
+                    line.strip() == f"#DISCONNECTED_{username}_PHONE"):
+                    
+                    # Skip this line and the next 4 lines (peer configuration)
+                    skip_lines = 4
+                    logger.info(f"[+] Removing peer configuration for {line.strip()}")
+                    continue
+                
+                new_config_lines.append(line)
+
+            # Write the new configuration back to file
+            async with aiofiles.open(self.cfg_path, "w") as cfg:
+                await cfg.writelines(new_config_lines)
+
+            # Restart WireGuard service
+            self.restart_service()
+            logger.warning(f"[!] Peer {username} permanently removed from WireGuard config")
+
+        except Exception as e:
+            logger.error(f"[-] Error removing peer {username}: {e}")
+
+    async def remove_user_configs_from_db(self, user_id: int):
+        """Remove all user configurations from database."""
+        try:
+            import psycopg2 as pg
+            conn = pg.connect(**configuration.db_connection_parameters)
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """--sql
+                    DELETE FROM vpn_config WHERE user_id = %s
+                    """,
+                    (user_id,),
+                )
+                deleted_count = cursor.rowcount
+                conn.commit()
+                
+                username = database.selector.get_username_by_id(user_id)
+                logger.warning(f"[!] Removed {deleted_count} config(s) from database for user {user_id}::{username}")
+                
+        except Exception as e:
+            logger.error(f"[-] Error removing configs from database for user {user_id}: {e}")
+
+    async def ban_user_completely(self, user_id: int):
+        """Completely ban user: remove configs from WireGuard and database, mark as banned."""
+        try:
+            # Remove from WireGuard config
+            await self.permanently_remove_peer(user_id)
+            
+            # Remove from database configs
+            await self.remove_user_configs_from_db(user_id)
+            
+            # Mark user as banned in database
+            database.update.ban_user(user_id)
+            
+            username = database.selector.get_username_by_id(user_id)
+            logger.warning(f"[!] User {user_id}::{username} completely banned and removed")
+            
+        except Exception as e:
+            logger.error(f"[-] Error completely banning user {user_id}: {e}")

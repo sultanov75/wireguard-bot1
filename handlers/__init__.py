@@ -89,3 +89,14 @@ def setup(dp: Dispatcher):
     dp.register_message_handler(
         restart_wg_service_admin, commands=["wgrestart"], state=None
     )
+
+    dp.register_message_handler(cmd_ban_user, commands=["ban"], state=None)
+
+    dp.register_message_handler(cmd_unban_user, commands=["unban"], state=None)
+
+    dp.register_message_handler(cmd_check_user_status, commands=["status"], state=None)
+
+    # New admin commands for bot blocking protection
+    dp.register_message_handler(admin.ban_user_command, commands=["ban"], state="*")
+    dp.register_message_handler(admin.unban_user_command, commands=["unban"], state="*")
+    dp.register_message_handler(admin.user_status_command, commands=["status"], state="*")

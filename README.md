@@ -197,8 +197,21 @@ Database: postgresql<br/>
 2. `/stats` - show stats about users and their access expiration dates.<br/>
    Aviable options: `/stats active` - show active users.<br/>
    `/stats inactive` - show inactive users.<br/>
-   `/stats` without options will show all users.<br/>
-   `/wgrestart` - restart wireguard service
+   `/stats` without options will show all users.
+3. `/wgrestart` - restart wireguard service
+4. `/ban <user_id>` - **NEW** permanently ban user and remove all configs from WireGuard and database
+5. `/unban <user_id>` - **NEW** unban previously banned user
+6. `/status <user_id>` - **NEW** check user status (banned, subscription, configs)
+
+### 🚫 Bot Blocking Protection
+
+The bot now automatically handles cases when users block it:
+- When a user blocks the bot, they are automatically banned permanently
+- All their WireGuard configurations are removed from server and database
+- Admins can manually ban/unban users using new commands
+- Banned users cannot use the bot until unbanned by admin
+
+See [BOT_BLOCKING_SOLUTION.md](BOT_BLOCKING_SOLUTION.md) for detailed information.
 
 
 

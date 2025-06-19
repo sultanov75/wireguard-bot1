@@ -141,3 +141,68 @@ def set_user_enddate_to_n(user_id: int, days: int) -> None:
     except (Exception, pg.DatabaseError) as error:
         logger.error(f"[-] {error}")
         return None
+
+
+def ban_user(user_id: int) -> None:
+    """Ban user permanently by setting is_banned to True and subscription_end_date to far past"""
+    try:
+        conn = pg.connect(**configuration.db_connection_parameters)
+        with conn.cursor() as cursor:
+            # Get username for logging
+            cursor.execute(
+                """--sql
+                SELECT username FROM users WHERE user_id = %s
+                """,
+                (user_id,),
+            )
+            result = cursor.fetchone()
+            username = result[0] if result else "unknown"
+
+            # Ban user and set subscription to expired
+            cursor.execute(
+                """--sql
+                UPDATE users SET 
+                    is_banned = TRUE,
+                    subscription_end_date = %s
+                WHERE user_id = %s
+                """,
+                (datetime.now() - timedelta(days=9999), user_id),
+            )
+
+            conn.commit()
+            logger.warning(f"[!] User {user_id}::{username} has been BANNED (bot blocked)")
+            
+    except (Exception, pg.DatabaseError) as error:
+        logger.error(f"[-] Error banning user {user_id}: {error}")
+        return None
+
+
+def unban_user(user_id: int) -> None:
+    """Unban user by setting is_banned to False"""
+    try:
+        conn = pg.connect(**configuration.db_connection_parameters)
+        with conn.cursor() as cursor:
+            # Get username for logging
+            cursor.execute(
+                """--sql
+                SELECT username FROM users WHERE user_id = %s
+                """,
+                (user_id,),
+            )
+            result = cursor.fetchone()
+            username = result[0] if result else "unknown"
+
+            # Unban user
+            cursor.execute(
+                """--sql
+                UPDATE users SET is_banned = FALSE WHERE user_id = %s
+                """,
+                (user_id,),
+            )
+
+            conn.commit()
+            logger.info(f"[+] User {user_id}::{username} has been UNBANNED")
+            
+    except (Exception, pg.DatabaseError) as error:
+        logger.error(f"[-] Error unbanning user {user_id}: {error}")
+        return None

@@ -16,10 +16,18 @@ from database import selector
 
 from utils.fsm import NewConfig, NewPayment
 from utils.qr_code import create_qr_code_from_peer_data
+from utils.bot_error_handler import check_user_access
 
 
 @rate_limit(limit=5)
 async def cmd_start(message: types.Message) -> types.Message:
+    # Check if user is banned
+    if database.selector.is_exist_user(message.from_user.id) and database.selector.is_user_banned(message.from_user.id):
+        await message.answer(
+            "❌ Ваш аккаунт заблокирован. Обратитесь к администратору.",
+        )
+        return
+
     if not message.from_user.username:
         await message.answer(
             f"Привет, {message.from_user.full_name}!\nУ тебя не установлен username, установи его в настройках телеграма и напиши /start\n"

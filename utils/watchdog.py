@@ -10,6 +10,7 @@ import keyboards as kb
 from loader import bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from loader import vpn_config
+from utils.bot_error_handler import safe_send_message
 
 
 class Watchdog:
@@ -33,18 +34,26 @@ class Watchdog:
                 if user_id not in notified_users:
                     message_text = self.get_message_text(days)
                     if days == -1:
-                        await bot.send_message(
+                        success = await safe_send_message(
+                            bot,
                             user_id,
                             message_text,
                             reply_markup=await kb.reply.free_user_kb(user_id=user_id),
                         )
-                        vpn_config.disconnect_peer(user_id)
+                        if success:
+                            vpn_config.disconnect_peer(user_id)
                     else:
-                        await bot.send_message(user_id, message_text)
-                    notified_users.append(user_id)
-                    logger.warning(
-                        f"[+] user {user_id} notified about end date {days} days"
-                    )
+                        success = await safe_send_message(bot, user_id, message_text)
+                    
+                    if success:
+                        notified_users.append(user_id)
+                        logger.warning(
+                            f"[+] user {user_id} notified about end date {days} days"
+                        )
+                    else:
+                        logger.warning(
+                            f"[!] Failed to notify user {user_id} (possibly banned due to bot blocking)"
+                        )
 
         logger.info("Finished checking for users with end date")
 
